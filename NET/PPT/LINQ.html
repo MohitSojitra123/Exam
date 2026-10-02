@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINQ, from the Source — A Step-by-Step Course</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F7FB;
+    --panel:#FFFFFF;
+    --panel-alt:#F1F1F8;
+    --border:#E1E1EC;
+    --text:#1C1D2A;
+    --muted:#5A5B70;
+    --faint:#8B8CA0;
+    --violet:#6C5CE7;
+    --violet-dim:#6C5CE71A;
+    --teal:#0C9C89;
+    --teal-dim:#0C9C891A;
+    --amber:#B8790E;
+    --amber-dim:#B8790E1A;
+    --rose:#D8486B;
+    --code-bg:#F1F2F8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3, .brand, nav .num{
+    font-family:'Space Grotesk', sans-serif;
+  }
+  code, pre, .code-font{
+    font-family:'JetBrains Mono', monospace;
+  }
+
+  /* ===== Layout shell ===== */
+  .shell{
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    min-height:100vh;
+  }
+  @media (max-width: 900px){
+    .shell{ grid-template-columns: 1fr; }
+    .sidebar{ position:relative; height:auto; }
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar{
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:28px 0 40px;
+  }
+  .brand{
+    padding:0 24px 20px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:14px;
+  }
+  .brand .mark{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:34px;height:34px;
+    border-radius:8px;
+    background:linear-gradient(135deg, var(--violet), var(--teal));
+    color:#0F1117;
+    font-weight:700;
+    font-size:14px;
+    margin-bottom:12px;
+  }
+  .brand h1{
+    font-size:19px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .brand p{
+    color:var(--muted);
+    font-size:12.5px;
+    margin-top:4px;
+  }
+  .progress-wrap{
+    padding:0 24px 16px;
+  }
+  .progress-track{
+    height:4px;
+    background:var(--border);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--teal), var(--violet));
+    transition:width .35s ease;
+  }
+  .progress-label{
+    font-size:11.5px;
+    color:var(--faint);
+    margin-top:6px;
+    letter-spacing:.02em;
+  }
+  .section-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--faint);
+    padding:16px 24px 8px;
+  }
+  nav ul{ list-style:none; }
+  nav li{ position:relative; }
+  nav button{
+    all:unset;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    width:100%;
+    padding:9px 24px;
+    cursor:pointer;
+    color:var(--muted);
+    font-size:13.5px;
+    border-left:2px solid transparent;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  nav button:hover{ background:var(--panel-alt); color:var(--text); }
+  nav button.active{
+    background:var(--panel-alt);
+    color:var(--text);
+    border-left:2px solid var(--teal);
+  }
+  nav .num{
+    font-size:11.5px;
+    color:var(--faint);
+    min-width:18px;
+  }
+  nav button.active .num{ color:var(--teal); }
+  nav button.done .num::after{
+    content:"✓";
+    color:var(--teal);
+  }
+
+  /* ===== Main content ===== */
+  main{
+    padding:48px 56px 120px;
+    max-width:840px;
+  }
+  @media (max-width:900px){
+    main{ padding:32px 20px 90px; }
+  }
+  .topic{ display:none; animation:fade .3s ease; }
+  .topic.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin-bottom:14px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--teal); }
+
+  h2.topic-title{
+    font-size:32px;
+    font-weight:600;
+    letter-spacing:-0.02em;
+    margin-bottom:10px;
+  }
+  .tagline{
+    color:var(--muted);
+    font-size:16px;
+    max-width:60ch;
+    margin-bottom:32px;
+  }
+  .explain{ margin-bottom:22px; }
+  .explain p{ margin-bottom:14px; color:#33344A; font-size:15px; }
+  .explain ul{ margin:0 0 14px 20px; color:#33344A; font-size:15px; }
+  .explain li{ margin-bottom:6px; }
+  .explain strong{ color:var(--text); }
+  .explain code{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    padding:1px 6px;
+    border-radius:4px;
+    font-size:13px;
+    color:var(--amber);
+  }
+
+  .block-label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--faint);
+    margin:26px 0 10px;
+  }
+  .block-label::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+
+  pre.codebox{
+    background:var(--code-bg);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:20px 22px;
+    overflow-x:auto;
+    font-size:13.5px;
+    line-height:1.7;
+    position:relative;
+  }
+  pre.codebox::before{
+    content:attr(data-lang);
+    position:absolute;
+    top:10px; right:14px;
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--faint);
+  }
+  .kw{ color:var(--violet); }
+  .tp{ color:var(--teal); }
+  .cm{ color:var(--faint); font-style:italic; }
+  .str{ color:var(--amber); }
+  .nm{ color:#1B6FC9; }
+
+  .output-box{
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-left:3px solid var(--amber);
+    border-radius:0 10px 10px 0;
+    padding:16px 20px;
+    margin-top:14px;
+    font-size:13.5px;
+  }
+  .output-box .lbl{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--amber);
+    margin-bottom:8px;
+    display:block;
+  }
+  .output-box pre{ font-family:'JetBrains Mono', monospace; color:#33344A; white-space:pre-wrap; }
+
+  .note{
+    background:var(--violet-dim);
+    border:1px solid #6C5CE744;
+    border-radius:10px;
+    padding:14px 18px;
+    margin-top:20px;
+    font-size:14px;
+    color:#33344A;
+  }
+  .note .lbl{ color:var(--violet); font-weight:600; margin-right:6px; }
+
+  .try-it{
+    background:var(--teal-dim);
+    border:1px solid #0C9C8944;
+    border-radius:10px;
+    padding:14px 18px;
+    margin-top:16px;
+    font-size:14px;
+    color:#33344A;
+  }
+  .try-it .lbl{ color:var(--teal); font-weight:600; margin-right:6px; }
+
+  .nav-buttons{
+    display:flex;
+    justify-content:space-between;
+    margin-top:48px;
+    padding-top:24px;
+    border-top:1px solid var(--border);
+    gap:14px;
+  }
+  .nav-buttons button{
+    all:unset;
+    cursor:pointer;
+    padding:12px 20px;
+    border-radius:9px;
+    border:1px solid var(--border);
+    font-size:13.5px;
+    color:var(--text);
+    background:var(--panel);
+    transition:border-color .15s, background .15s;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .nav-buttons button:hover{ border-color:var(--teal); }
+  .nav-buttons button.next{ text-align:right; align-items:flex-end; }
+  .nav-buttons .small{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); }
+  .nav-buttons button:disabled{ opacity:.3; cursor:default; }
+  .nav-buttons button:disabled:hover{ border-color:var(--border); }
+
+  /* ===== Pipeline hero (signature element, intro topic only) ===== */
+  .pipeline{
+    background:var(--code-bg);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:24px 20px 18px;
+    margin:26px 0 8px;
+    overflow-x:auto;
+  }
+  .pipeline svg{ display:block; min-width:640px; width:100%; height:auto; }
+  .pipeline-cap{ color:var(--faint); font-size:11.5px; text-align:center; margin-top:10px; letter-spacing:.02em; }
+  .flow-chip{ font-family:'JetBrains Mono', monospace; font-size:12px; fill:#0F1117; font-weight:600; }
+  .flow-label{ font-family:'Inter', sans-serif; font-size:10.5px; fill:var(--faint); letter-spacing:.04em; }
+  .dot-flow{ fill:var(--amber); }
+
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:6px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">λ</div>
+      <h1>LINQ, from the Source</h1>
+      <p>A topic-by-topic course in C# LINQ</p>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Topic 1 of 15</div>
+    </div>
+    <nav id="nav"></nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="main"></main>
+</div>
+
+<script>
+/* =========================================================
+   CONTENT MODEL
+   Each topic: id, section, title, tagline, explain (HTML),
+   code (HTML with span highlighting), output (plain text or HTML)
+   ========================================================= */
+const topics = [
+
+// ---------------- SECTION: FOUNDATIONS ----------------
+{
+  section:"Foundations",
+  title:"What LINQ Actually Is",
+  tagline:"Before any syntax: the one idea that makes the rest of this course make sense.",
+  explain:`
+    <p><strong>LINQ</strong> (Language Integrated Query) is C#'s built-in way of asking questions of a
+    sequence of data &mdash; a <code>List&lt;T&gt;</code>, an array, a database table, an XML tree &mdash; using
+    one consistent syntax, instead of hand-writing loops every time.</p>
+    <p>The core mental model is a <strong>pipeline</strong>. You start with a sequence, and you pass it through
+    a chain of small, named operators. Each operator takes a sequence in and produces a sequence (or a value)
+    out. You read a LINQ chain left to right, the same way data flows through it.</p>
+  `,
+  pipelineHero:true,
+  block1label:"the idea, in one line",
+  code:`<span class="cm">// Without LINQ: say what to do, one step at a time</span>
+<span class="tp">List</span>&lt;<span class="tp">int</span>&gt; result = <span class="kw">new</span> <span class="tp">List</span>&lt;<span class="tp">int</span>&gt;();
+<span class="kw">foreach</span> (<span class="tp">var</span> n <span class="kw">in</span> numbers)
+{
+    <span class="kw">if</span> (n % 2 == 0)
+        result.Add(n * n);
+}
+
+<span class="cm">// With LINQ: say what you WANT, as a pipeline</span>
+<span class="tp">var</span> result = numbers
+    .Where(n =&gt; n % 2 == 0)   <span class="cm">// keep even numbers</span>
+    .Select(n =&gt; n * n);      <span class="cm">// square each one</span>`,
+  output:`Same result, both ways — but the LINQ version reads as
+a description of the outcome, not a recipe for reaching it.
+That shift (imperative → declarative) is the whole point of LINQ.`,
+  note:`LINQ works over anything that implements <code>IEnumerable&lt;T&gt;</code>. That single interface is
+  why the same <code>Where</code>, <code>Select</code>, <code>OrderBy</code> vocabulary works identically on a
+  <code>List&lt;T&gt;</code>, an array, or (with LINQ to SQL / Entity Framework) an entire database table.`
+},
+
+{
+  section:"Foundations",
+  title:"Setting Up",
+  tagline:"The one using directive and the data shape every example in this course will reuse.",
+  explain:`
+    <p>LINQ's extension methods live in the <code>System.Linq</code> namespace. Add one line at the top of
+    your file and every <code>List&lt;T&gt;</code>, array, or other <code>IEnumerable&lt;T&gt;</code> gains
+    dozens of new methods &mdash; <code>Where</code>, <code>Select</code>, <code>OrderBy</code>, and the rest.</p>
+    <p>Throughout this course we'll reuse one small data set: a list of <code>Student</code> objects. Get
+    comfortable with this shape now &mdash; every later topic queries it.</p>
+  `,
+  block1label:"the setup every example builds on",
+  code:`<span class="kw">using</span> System;
+<span class="kw">using</span> System.Collections.Generic;
+<span class="kw">using</span> System.Linq;   <span class="cm">// ← this is what unlocks LINQ</span>
+
+<span class="kw">public</span> <span class="kw">class</span> <span class="tp">Student</span>
+{
+    <span class="kw">public</span> <span class="tp">string</span> Name { get; set; }
+    <span class="kw">public</span> <span class="tp">int</span> Age { get; set; }
+    <span class="kw">public</span> <span class="tp">string</span> Major { get; set; }
+    <span class="kw">public</span> <span class="tp">double</span> Gpa { get; set; }
+}
+
+<span class="tp">List</span>&lt;<span class="tp">Student</span>&gt; students = <span class="kw">new</span>()
+{
+    <span class="kw">new</span> Student { Name = <span class="str">"Asha"</span>,   Age = 21, Major = <span class="str">"CS"</span>,      Gpa = 8.7 },
+    <span class="kw">new</span> Student { Name = <span class="str">"Ravi"</span>,   Age = 23, Major = <span class="str">"Math"</span>,    Gpa = 7.9 },
+    <span class="kw">new</span> Student { Name = <span class="str">"Meera"</span>,  Age = 22, Major = <span class="str">"CS"</span>,      Gpa = 9.2 },
+    <span class="kw">new</span> Student { Name = <span class="str">"Kabir"</span>,  Age = 20, Major = <span class="str">"Physics"</span>, Gpa = 6.8 },
+    <span class="kw">new</span> Student { Name = <span class="str">"Diya"</span>,   Age = 24, Major = <span class="str">"Math"</span>,    Gpa = 8.1 },
+};`,
+  output:`No output yet — this is our data source.
+Every topic from here on queries this same "students" list,
+so you can see how each operator changes the result.`,
+  note:`If you're following along in an IDE, this compiles as-is in a .NET console app.
+  <code>new()</code> is C#'s target-typed constructor shorthand — you can also write
+  <code>new List&lt;Student&gt;()</code> if you're on an older C# version.`
+},
+
+{
+  section:"Foundations",
+  title:"Query Syntax vs. Method Syntax",
+  tagline:"Two ways to write the same query — and why almost everyone ends up preferring one.",
+  explain:`
+    <p>LINQ offers two syntaxes that compile to the <em>exact same code</em>:</p>
+    <ul>
+      <li><strong>Query syntax</strong> &mdash; reads like SQL (<code>from ... where ... select</code>)</li>
+      <li><strong>Method syntax</strong> &mdash; chains extension methods with <code>.</code> and lambdas</li>
+    </ul>
+    <p>Query syntax is friendlier when you're new to LINQ because it mirrors SQL. Method syntax is what you'll
+    see in almost all real-world C# code, because it composes better and covers operators (like
+    <code>Sum</code> or <code>Take</code>) that query syntax has no keyword for. <strong>This course uses
+    method syntax from here on</strong> &mdash; but knowing both means you can read either.</p>
+  `,
+  block1label:"query syntax",
+  code:`<span class="tp">var</span> csStudents =
+    <span class="kw">from</span> s <span class="kw">in</span> students
+    <span class="kw">where</span> s.Major == <span class="str">"CS"</span>
+    <span class="kw">orderby</span> s.Gpa <span class="kw">descending</span>
+    <span class="kw">select</span> s.Name;`,
+  block2label:"method syntax — same query",
+  code2:`<span class="tp">var</span> csStudents = students
+    .Where(s =&gt; s.Major == <span class="str">"CS"</span>)
+    .OrderByDescending(s =&gt; s.Gpa)
+    .Select(s =&gt; s.Name);`,
+  output:`Asha
+Meera
+
+Both snippets produce an identical IEnumerable<string>.
+The compiler literally rewrites query syntax into method syntax
+before it even compiles — they are not two features, one is sugar for the other.`,
+  note:`A handy rule of thumb: if a query has multiple <code>where</code>/<code>select</code>-style steps or
+  needs a join, query syntax often reads more clearly. For everything else — especially short filters and
+  aggregations — method syntax is more common and more powerful.`
+},
+
+// ---------------- SECTION: SHAPING DATA ----------------
+{
+  section:"Shaping Data",
+  title:"Where — Filtering a Sequence",
+  tagline:"The first and most-used operator: keep only the elements that match a condition.",
+  explain:`
+    <p><code>Where</code> takes a <strong>predicate</strong> &mdash; a function returning <code>true</code> or
+    <code>false</code> &mdash; and returns only the elements for which it's <code>true</code>. Nothing is
+    changed or reordered; elements are just kept or dropped.</p>
+    <p>The <code>s =&gt; s.Gpa &gt; 8.0</code> part is a <strong>lambda expression</strong>: "given <code>s</code>,
+    evaluate this expression." You'll see this shape everywhere in LINQ.</p>
+  `,
+  block1label:"filter students with a GPA above 8.0",
+  code:`<span class="tp">var</span> topStudents = students
+    .Where(s =&gt; s.Gpa &gt; 8.0);
+
+<span class="kw">foreach</span> (<span class="tp">var</span> s <span class="kw">in</span> topStudents)
+    Console.WriteLine($<span class="str">"{s.Name} — {s.Gpa}"</span>);
+
+<span class="cm">// You can chain multiple conditions with && / ||,
+// or chain multiple .Where() calls — both work identically</span>
+<span class="tp">var</span> youngAndStrong = students
+    .Where(s =&gt; s.Age &lt; 23 && s.Gpa &gt; 7.5);`,
+  output:`Asha — 8.7
+Meera — 9.2
+Diya — 8.1`,
+  note:`<code>Where</code> is <strong>lazy</strong> — it doesn't scan the list until something asks for the
+  results (a <code>foreach</code>, a <code>.ToList()</code>, etc). We'll unpack exactly what that means in the
+  Deferred Execution topic later in this course.`
+},
+
+{
+  section:"Shaping Data",
+  title:"Select — Projecting a New Shape",
+  tagline:"Transform each element into something else — often a smaller, purpose-built shape.",
+  explain:`
+    <p>While <code>Where</code> decides <em>which</em> elements survive, <code>Select</code> decides
+    <em>what shape</em> each surviving element takes. It's a 1-to-1 transform: one input element in, one output
+    value out.</p>
+    <p>A very common pattern is projecting full objects down to just the fields you need, often into an
+    <strong>anonymous type</strong> using <code>new { ... }</code>.</p>
+  `,
+  block1label:"project full objects down to just what you need",
+  code:`<span class="cm">// Just the names</span>
+<span class="tp">var</span> names = students.Select(s =&gt; s.Name);
+
+<span class="cm">// A reshaped anonymous object — pick and even rename fields</span>
+<span class="tp">var</span> summary = students.Select(s =&gt; <span class="kw">new</span>
+{
+    s.Name,
+    YearsToGraduate = 4 - (s.Age - 18),
+    Honors = s.Gpa &gt;= 9.0
+});
+
+<span class="kw">foreach</span> (<span class="tp">var</span> item <span class="kw">in</span> summary)
+    Console.WriteLine($<span class="str">"{item.Name}: grad in {item.YearsToGraduate}y, honors={item.Honors}"</span>);`,
+  output:`Asha: grad in 1y, honors=False
+Ravi: grad in -1y, honors=False
+Meera: grad in 0y, honors=True
+Kabir: grad in 2y, honors=False
+Diya: grad in -2y, honors=False`,
+  note:`There's also <code>SelectMany</code>, used when each element projects to a <em>collection</em> that you
+  want flattened into one sequence — e.g. turning a list of students, each with a list of courses, into one flat
+  list of all courses. It's <code>Select</code> + auto-flatten in a single step.`
+},
+
+// ---------------- SECTION: ORGANIZING RESULTS ----------------
+{
+  section:"Organizing Results",
+  title:"OrderBy, OrderByDescending, ThenBy",
+  tagline:"Sort a sequence — and break ties with a secondary key, without ever mutating the original list.",
+  explain:`
+    <p><code>OrderBy</code> sorts ascending by whatever key selector you give it; <code>OrderByDescending</code>
+    sorts descending. Critically, <strong>neither one modifies the original list</strong> &mdash; they return a
+    brand-new sorted sequence, leaving <code>students</code> exactly as it was.</p>
+    <p>To break ties, chain <code>.ThenBy(...)</code> or <code>.ThenByDescending(...)</code> — never a second
+    <code>.OrderBy()</code>, which would just re-sort from scratch and discard the first sort.</p>
+  `,
+  block1label:"sort by major, then by GPA within each major",
+  code:`<span class="tp">var</span> ranked = students
+    .OrderBy(s =&gt; s.Major)              <span class="cm">// primary key, ascending</span>
+    .ThenByDescending(s =&gt; s.Gpa);      <span class="cm">// tie-breaker, descending</span>
+
+<span class="kw">foreach</span> (<span class="tp">var</span> s <span class="kw">in</span> ranked)
+    Console.WriteLine($<span class="str">"{s.Major,-8} {s.Name,-6} {s.Gpa}"</span>);`,
+  output:`CS       Meera  9.2
+CS       Asha   8.7
+Math     Diya   8.1
+Math     Ravi   7.9
+Physics  Kabir  6.8`,
+  note:`Common mistake: writing <code>.OrderBy(s =&gt; s.Major).OrderBy(s =&gt; s.Gpa)</code> instead of
+  <code>.ThenBy()</code>. That code compiles fine but silently throws away the major-based ordering, because the
+  second <code>OrderBy</code> re-sorts the whole sequence by GPA alone.`
+},
+
+{
+  section:"Organizing Results",
+  title:"GroupBy — Bucketing Elements",
+  tagline:"Split a sequence into groups sharing a key, like a GROUP BY in SQL.",
+  explain:`
+    <p><code>GroupBy</code> returns a sequence of groups. Each group is an <code>IGrouping&lt;TKey, TElement&gt;</code>
+    &mdash; it has a <code>.Key</code> property (the value grouped on) and is itself enumerable (the members of
+    that group).</p>
+    <p>This is one of the operators where reading it as "buckets" rather than "a flat list" really helps.</p>
+  `,
+  block1label:"group students by major",
+  code:`<span class="tp">var</span> byMajor = students.GroupBy(s =&gt; s.Major);
+
+<span class="kw">foreach</span> (<span class="tp">var</span> group <span class="kw">in</span> byMajor)
+{
+    Console.WriteLine($<span class="str">"{group.Key} ({group.Count()} students)"</span>);
+    <span class="kw">foreach</span> (<span class="tp">var</span> s <span class="kw">in</span> group)
+        Console.WriteLine($<span class="str">"  - {s.Name}"</span>);
+}`,
+  output:`CS (2 students)
+  - Asha
+  - Meera
+Math (2 students)
+  - Ravi
+  - Diya
+Physics (1 students)
+  - Kabir`,
+  note:`Combine <code>GroupBy</code> with <code>Select</code> to compute a summary per group — e.g.
+  <code>students.GroupBy(s =&gt; s.Major).Select(g =&gt; new { Major = g.Key, AvgGpa = g.Average(s =&gt; s.Gpa) })</code>
+  gives you an average GPA per major in one readable chain.`
+},
+
+{
+  section:"Organizing Results",
+  title:"Join — Combining Two Sequences",
+  tagline:"Match elements across two sequences by a shared key, like a SQL inner join.",
+  explain:`
+    <p><code>Join</code> pairs up elements from two sequences where a key from one matches a key from the
+    other &mdash; conceptually identical to an <strong>inner join</strong> in SQL. You supply: the outer
+    sequence, the inner sequence, a key selector for each side, and a function describing what to build from
+    each matched pair.</p>
+  `,
+  block1label:"join students to a separate list of departments",
+  code:`<span class="kw">record</span> <span class="tp">Department</span>(<span class="tp">string</span> Name, <span class="tp">string</span> Building);
+
+<span class="tp">List</span>&lt;<span class="tp">Department</span>&gt; departments = <span class="kw">new</span>()
+{
+    <span class="kw">new</span>(<span class="str">"CS"</span>,      <span class="str">"Turing Hall"</span>),
+    <span class="kw">new</span>(<span class="str">"Math"</span>,    <span class="str">"Euler Hall"</span>),
+    <span class="kw">new</span>(<span class="str">"Physics"</span>, <span class="str">"Bohr Hall"</span>),
+};
+
+<span class="tp">var</span> joined = students.Join(
+    departments,
+    student =&gt; student.Major,      <span class="cm">// key from the outer (students) sequence</span>
+    dept =&gt; dept.Name,             <span class="cm">// key from the inner (departments) sequence</span>
+    (student, dept) =&gt; <span class="kw">new</span> { student.Name, Building = dept.Building }
+);
+
+<span class="kw">foreach</span> (<span class="tp">var</span> row <span class="kw">in</span> joined)
+    Console.WriteLine($<span class="str">"{row.Name} studies in {row.Building}"</span>);`,
+  output:`Asha studies in Turing Hall
+Ravi studies in Euler Hall
+Meera studies in Turing Hall
+Kabir studies in Bohr Hall
+Diya studies in Euler Hall`,
+  note:`Need a <strong>left join</strong> (keep outer elements even without a match)? Use
+  <code>GroupJoin</code> combined with <code>SelectMany</code> and <code>DefaultIfEmpty()</code> — the most
+  "SQL-flavored" corner of LINQ, worth a dedicated look once this topic feels solid.`
+},
+
+// ---------------- SECTION: SUMMARIZING ----------------
+{
+  section:"Summarizing",
+  title:"Aggregation — Count, Sum, Average, Min, Max",
+  tagline:"Collapse a sequence down to a single number.",
+  explain:`
+    <p>These operators all do the same kind of job: walk the whole sequence and return <strong>one value</strong>,
+    not a sequence. Most accept an optional selector so you can aggregate a specific field instead of the raw
+    elements.</p>
+  `,
+  block1label:"the five you'll use constantly",
+  code:`<span class="tp">int</span> total   = students.Count();                         <span class="cm">// 5</span>
+<span class="tp">int</span> csCount = students.Count(s =&gt; s.Major == <span class="str">"CS"</span>);      <span class="cm">// 2 — Count takes a predicate too</span>
+
+<span class="tp">double</span> totalGpa = students.Sum(s =&gt; s.Gpa);              <span class="cm">// 40.7</span>
+<span class="tp">double</span> avgGpa   = students.Average(s =&gt; s.Gpa);          <span class="cm">// 8.14</span>
+
+<span class="tp">double</span> lowest  = students.Min(s =&gt; s.Gpa);              <span class="cm">// 6.8</span>
+<span class="tp">Student</span> weakest = students.MinBy(s =&gt; s.Gpa);          <span class="cm">// the whole Kabir object, not just his GPA</span>
+
+<span class="tp">double</span> highest = students.Max(s =&gt; s.Gpa);              <span class="cm">// 9.2</span>`,
+  output:`total     = 5
+csCount   = 2
+totalGpa  = 40.7
+avgGpa    = 8.14
+lowest    = 6.8
+weakest   = Kabir
+highest   = 9.2`,
+  note:`For anything custom — a running product, a concatenated string, a hand-rolled reduction —
+  <code>Aggregate</code> is the general-purpose tool underneath all of these:
+  <code>students.Aggregate(0.0, (runningTotal, s) =&gt; runningTotal + s.Gpa)</code> reproduces <code>Sum</code>
+  by hand. Reach for the named methods first; reach for <code>Aggregate</code> when nothing named fits.`
+},
+
+{
+  section:"Summarizing",
+  title:"Any, All, Contains — Quantifiers",
+  tagline:"Ask a true/false question about a sequence, without writing a manual loop.",
+  explain:`
+    <p>These return a single <code>bool</code>. They also all <strong>short-circuit</strong>: <code>Any</code>
+    stops at the first match, <code>All</code> stops at the first mismatch — neither one necessarily scans the
+    whole sequence, which matters for large or lazily-generated data.</p>
+  `,
+  block1label:"three questions, three one-liners",
+  code:`<span class="tp">bool</span> anyFailing = students.Any(s =&gt; s.Gpa &lt; 7.0);        <span class="cm">// true (Kabir)</span>
+<span class="tp">bool</span> allPassing  = students.All(s =&gt; s.Gpa &gt;= 6.0);        <span class="cm">// true</span>
+<span class="tp">bool</span> hasNoOne    = students.Any();                          <span class="cm">// true — no predicate = "is it non-empty?"</span>
+
+<span class="tp">var</span> names = students.Select(s =&gt; s.Name);
+<span class="tp">bool</span> hasRavi = names.Contains(<span class="str">"Ravi"</span>);                  <span class="cm">// true</span>`,
+  output:`anyFailing = True
+allPassing = True
+hasNoOne   = True
+hasRavi    = True`,
+  note:`<code>students.Any()</code> with no arguments is the idiomatic, efficient way to check
+  "is this sequence non-empty?" — prefer it over <code>students.Count() &gt; 0</code>, which (on some sequence
+  types) has to fully enumerate just to produce a count you're going to throw away.`
+},
+
+// ---------------- SECTION: PICKING ELEMENTS ----------------
+{
+  section:"Picking Elements",
+  title:"First, Single, Last — and their *OrDefault twins",
+  tagline:"Pull exactly one element out of a sequence — each variant makes a different promise.",
+  explain:`
+    <p>These operators return one element, but they differ in what they assume and what happens when that
+    assumption is wrong:</p>
+    <ul>
+      <li><code>First()</code> — the first element; <strong>throws</strong> if the sequence is empty</li>
+      <li><code>FirstOrDefault()</code> — the first element, or <code>default</code> (e.g. <code>null</code>) if empty</li>
+      <li><code>Single()</code> — the <em>one and only</em> element; <strong>throws</strong> if there's zero or more than one</li>
+      <li><code>SingleOrDefault()</code> — same, but returns <code>default</code> instead of throwing on zero</li>
+      <li><code>Last()</code> / <code>LastOrDefault()</code> — same idea, from the end</li>
+    </ul>
+  `,
+  block1label:"choosing the right one on purpose",
+  code:`<span class="cm">// "Give me the first CS student" — throws if none exists</span>
+<span class="tp">Student</span> firstCs = students.First(s =&gt; s.Major == <span class="str">"CS"</span>);
+
+<span class="cm">// "Give me the student named Zara, or null if there isn't one"</span>
+<span class="tp">Student</span> zara = students.FirstOrDefault(s =&gt; s.Name == <span class="str">"Zara"</span>);
+<span class="cm">// zara is null here — no exception</span>
+
+<span class="cm">// "There should be EXACTLY one Physics student — enforce that assumption"</span>
+<span class="tp">Student</span> onlyPhysics = students.Single(s =&gt; s.Major == <span class="str">"Physics"</span>);
+
+<span class="cm">// Using Single() where First() was meant is a classic bug:
+// it throws the moment there's more than one match, by design.</span>`,
+  output:`firstCs      = Asha
+zara         = null (no exception — OrDefault absorbed it)
+onlyPhysics  = Kabir`,
+  note:`Reach for <code>Single</code> specifically when "more than one match" would itself be a bug you want
+  to know about immediately — e.g. looking up a user by a unique ID. Reach for <code>First</code> when
+  multiple matches are expected and fine, and you just want the top one.`
+},
+
+{
+  section:"Picking Elements",
+  title:"Distinct, Union, Intersect, Except",
+  tagline:"Set-style operations — the same vocabulary you'd use for two sets in math class.",
+  explain:`
+    <p>These treat sequences like mathematical sets, comparing elements by equality:</p>
+    <ul>
+      <li><code>Distinct()</code> — removes duplicates from one sequence</li>
+      <li><code>Union()</code> — all elements from either sequence, duplicates removed</li>
+      <li><code>Intersect()</code> — only elements present in <em>both</em> sequences</li>
+      <li><code>Except()</code> — elements in the first sequence that are <em>not</em> in the second</li>
+    </ul>
+  `,
+  block1label:"set operations on the list of majors",
+  code:`<span class="tp">var</span> allMajors = students.Select(s =&gt; s.Major);
+<span class="cm">// { CS, Math, CS, Physics, Math } — has duplicates</span>
+
+<span class="tp">var</span> uniqueMajors = allMajors.Distinct();
+<span class="cm">// { CS, Math, Physics }</span>
+
+<span class="tp">var</span> offeredNextYear = <span class="kw">new</span>[] { <span class="str">"CS"</span>, <span class="str">"Biology"</span>, <span class="str">"Art"</span> };
+
+<span class="tp">var</span> continuing   = uniqueMajors.Intersect(offeredNextYear);  <span class="cm">// { CS }</span>
+<span class="tp">var</span> discontinued = uniqueMajors.Except(offeredNextYear);    <span class="cm">// { Math, Physics }</span>
+<span class="tp">var</span> everyMajorEver = uniqueMajors.Union(offeredNextYear);   <span class="cm">// { CS, Math, Physics, Biology, Art }</span>`,
+  output:`uniqueMajors   = CS, Math, Physics
+continuing     = CS
+discontinued   = Math, Physics
+everyMajorEver = CS, Math, Physics, Biology, Art`,
+  note:`For custom objects (like <code>Student</code> instead of <code>string</code>), these compare by default
+  equality unless you pass an <code>IEqualityComparer&lt;T&gt;</code> — otherwise two different <code>Student</code>
+  instances with identical field values still count as "different."`
+},
+
+{
+  section:"Picking Elements",
+  title:"Skip, Take — Partitioning a Sequence",
+  tagline:"Grab a slice of a sequence — the backbone of pagination.",
+  explain:`
+    <p><code>Skip(n)</code> discards the first <code>n</code> elements; <code>Take(n)</code> keeps only the
+    first <code>n</code>. Chained together, they're exactly how you'd implement "page 2 of results."</p>
+    <p>Their conditional cousins, <code>SkipWhile</code> and <code>TakeWhile</code>, stop based on a predicate
+    instead of a fixed count &mdash; and stop at the <em>first</em> element that breaks the condition, even if
+    later elements would satisfy it again.</p>
+  `,
+  block1label:"a simple two-item page, plus TakeWhile",
+  code:`<span class="tp">var</span> byGpaDesc = students.OrderByDescending(s =&gt; s.Gpa).ToList();
+
+<span class="cm">// Page 2, page size 2: skip the top 2, then take the next 2</span>
+<span class="tp">var</span> page2 = byGpaDesc.Skip(2).Take(2);
+
+<span class="cm">// TakeWhile stops at the FIRST failure, even if later items would pass</span>
+<span class="tp">var</span> aboveEight = byGpaDesc.TakeWhile(s =&gt; s.Gpa &gt; 8.0);`,
+  output:`byGpaDesc  = Meera(9.2), Asha(8.7), Diya(8.1), Ravi(7.9), Kabir(6.8)
+
+page2      = Diya(8.1), Ravi(7.9)
+
+aboveEight = Meera(9.2), Asha(8.7)
+             (stops at Diya since 8.1 > 8.0 is false — Ravi
+             and Kabir are never even checked)`,
+  note:`Notice <code>.ToList()</code> in the first line — <code>OrderByDescending</code> is lazy, and calling
+  it twice (once implicitly for each later use) would re-sort twice. Materializing it once with
+  <code>ToList()</code> avoids that. More on exactly why, next.`
+},
+
+// ---------------- SECTION: HOW LINQ REALLY RUNS ----------------
+{
+  section:"How LINQ Really Runs",
+  title:"Deferred vs. Immediate Execution",
+  tagline:"The single most important — and most surprising — thing about how LINQ actually runs.",
+  explain:`
+    <p>Every LINQ operator falls into one of two execution models:</p>
+    <ul>
+      <li><strong>Deferred</strong> — <code>Where</code>, <code>Select</code>, <code>OrderBy</code>,
+      <code>GroupBy</code>, <code>Join</code>, <code>Skip</code>, <code>Take</code>... Writing the query does
+      <em>not</em> run it. The query object just remembers what it needs to do, and only runs when something
+      finally asks for results.</li>
+      <li><strong>Immediate</strong> — <code>ToList</code>, <code>ToArray</code>, <code>ToDictionary</code>,
+      <code>Count</code>, <code>Sum</code>, <code>Average</code>, <code>Min</code>/<code>Max</code>,
+      <code>First</code>/<code>FirstOrDefault</code>, <code>Single</code>, <code>Any</code>/<code>All</code>,
+      <code>Aggregate</code>... These run <strong>the instant you call them</strong>. Each one must fully (or
+      partially) walk the sequence right then, because it has to hand back one concrete answer — a list, a
+      count, a single element — not another query to run later.</li>
+    </ul>
+    <p>Every LINQ chain is really a row of deferred operators that ends in exactly one immediate operator (or a
+    <code>foreach</code>, which is immediate too). That final call is what actually triggers everything before
+    it to run, from the source all the way through.</p>
+  `,
+  block1label:"deferred — building the query runs nothing yet",
+  code:`<span class="tp">var</span> query = students.Where(s =&gt; s.Gpa &gt; 8.0);   <span class="cm">// NOT run yet — just a plan</span>
+
+Console.WriteLine(<span class="str">"query built, nothing has executed"</span>);
+<span class="cm">// ^ this line genuinely prints BEFORE a single student has been checked</span>
+
+Console.WriteLine(query.Count());   <span class="cm">// .Count() is immediate → runs the query NOW → 3</span>
+
+students.Add(<span class="kw">new</span> Student { Name = <span class="str">"Zoe"</span>, Age = 21, Major = <span class="str">"CS"</span>, Gpa = 9.5 });
+
+Console.WriteLine(query.Count());   <span class="cm">// runs it AGAIN, from scratch, over the NEW data → 4</span>`,
+  block2label:"immediate — these run the moment you call them",
+  code2:`<span class="cm">// Every one of these executes right here, on this line — no waiting</span>
+<span class="tp">List</span>&lt;<span class="tp">Student</span>&gt; snapshot = students.Where(s =&gt; s.Gpa &gt; 8.0).ToList();   <span class="cm">// runs now</span>
+<span class="tp">int</span>            passingCount = students.Count(s =&gt; s.Gpa &gt; 8.0);              <span class="cm">// runs now</span>
+<span class="tp">double</span>         average      = students.Average(s =&gt; s.Gpa);                   <span class="cm">// runs now</span>
+<span class="tp">Student</span>        topStudent   = students.OrderByDescending(s =&gt; s.Gpa).First(); <span class="cm">// runs now</span>
+
+<span class="cm">// Because ToList() already ran and copied the results out,
+// "snapshot" stays fixed even if "students" changes afterward —
+// unlike "query" above, which re-runs every time it's asked again.</span>
+students.Add(<span class="kw">new</span> Student { Name = <span class="str">"Zoe"</span>, Age = 21, Major = <span class="str">"CS"</span>, Gpa = 9.5 });
+Console.WriteLine(snapshot.Count);   <span class="cm">// still 3 — snapshot is a plain List<T> now, not a query</span>`,
+  output:`query built, nothing has executed
+3
+4   ← same "query" variable, different result, because the
+      source list changed between the two enumerations
+
+snapshot.Count      = 3   (frozen the moment .ToList() ran)
+passingCount        = 3
+average             = 8.14
+topStudent          = Meera
+snapshot.Count      = 3   (unchanged after students.Add — it's a List<T> now, not a live query)`,
+  note:`Rule of thumb: keep a chain deferred while you're still composing it — cheap, and it can be extended
+  further with no wasted work. Call an immediate operator (<code>ToList</code>, <code>ToArray</code>,
+  <code>Count</code>, <code>First</code>, etc.) once you actually need the answer, plan to use the result more
+  than once, or need a stable snapshot that won't silently change underneath you.`
+},
+
+// ---------------- SECTION: LINQ VARIANTS ----------------
+{
+  section:"LINQ Variants",
+  title:"The Types of LINQ",
+  tagline:"Same query vocabulary, five different execution engines underneath.",
+  explain:`
+    <p>Everything so far has been <strong>LINQ to Objects</strong> — queries running against in-memory
+    collections. But "LINQ" is really a <em>pattern</em>: the same <code>Where</code>/<code>Select</code>/
+    <code>OrderBy</code> vocabulary, implemented by several different providers, each targeting a different
+    kind of data source. Below is one example of each — same syntax, five different places the query actually
+    runs.</p>
+  `,
+  block1label:"1. LINQ to Objects — in-memory collections (what this whole course uses)",
+  code:`<span class="cm">// The query runs as plain C#, right here in the process,
+// walking the List<Student> element by element.</span>
+<span class="tp">var</span> csStudents = students
+    .Where(s =&gt; s.Major == <span class="str">"CS"</span>)
+    .OrderByDescending(s =&gt; s.Gpa)
+    .Select(s =&gt; s.Name);
+    <span class="cm">// → Meera, Asha</span>`,
+  block2label:"2. LINQ to Entities (EF Core) — queries a database, becomes SQL",
+  code2:`<span class="cm">// dbContext.Students is IQueryable<Student>, not a List —
+// this builds an expression tree, translated into SQL,
+// and only the matching rows travel back from the server.</span>
+<span class="tp">var</span> csStudents = dbContext.Students
+    .Where(s =&gt; s.Major == <span class="str">"CS"</span>)
+    .OrderByDescending(s =&gt; s.Gpa)
+    .Select(s =&gt; s.Name)
+    .ToList();
+    <span class="cm">// → SQL sent to the database:
+    //   SELECT Name FROM Students
+    //   WHERE Major = 'CS' ORDER BY Gpa DESC</span>`,
+  extraBlocks:[
+    {
+      label:"3. LINQ to SQL — an older, lighter Microsoft ORM (predecessor to EF)",
+      code:`<span class="cm">// LINQ to SQL maps one table to one class directly via a
+// DataContext, generated from your database schema.
+// The query syntax is identical to LINQ to Entities:</span>
+<span class="tp">DataContext</span> db = <span class="kw">new</span> <span class="tp">DataContext</span>(connectionString);
+<span class="tp">Table</span>&lt;<span class="tp">Student</span>&gt; studentsTable = db.GetTable&lt;<span class="tp">Student</span>&gt;();
+
+<span class="tp">var</span> csStudents = studentsTable
+    .Where(s =&gt; s.Major == <span class="str">"CS"</span>)
+    .Select(s =&gt; s.Name);
+    <span class="cm">// → also becomes SQL, but through a lighter, single-database
+    // mapping layer rather than EF Core's full change-tracking ORM</span>`
+    },
+    {
+      label:"4. LINQ to XML — querying and building XML documents",
+      code:`<span class="kw">using</span> System.Xml.Linq;
+
+<span class="tp">XElement</span> roster = <span class="tp">XElement</span>.Parse(<span class="str">@"
+    &lt;Students&gt;
+      &lt;Student Major='CS'&gt;Asha&lt;/Student&gt;
+      &lt;Student Major='Math'&gt;Ravi&lt;/Student&gt;
+      &lt;Student Major='CS'&gt;Meera&lt;/Student&gt;
+    &lt;/Students&gt;"</span>);
+
+<span class="tp">var</span> csNames = roster
+    .Elements(<span class="str">"Student"</span>)
+    .Where(el =&gt; (<span class="tp">string</span>)el.Attribute(<span class="str">"Major"</span>) == <span class="str">"CS"</span>)
+    .Select(el =&gt; el.Value);
+    <span class="cm">// same Where/Select vocabulary — now walking an XML tree
+    // → Asha, Meera</span>`
+    },
+    {
+      label:"5. PLINQ (Parallel LINQ) — the same query, spread across CPU cores",
+      code:`<span class="cm">// A CPU-heavy per-item check on a large in-memory list</span>
+<span class="tp">var</span> heavyResults = hugeStudentList
+    .AsParallel()                          <span class="cm">// ← the only change from LINQ to Objects</span>
+    .Where(s =&gt; IsExpensiveCheck(s))
+    .Select(s =&gt; Transform(s))
+    .ToList();
+    <span class="cm">// → work is split across however many cores are available;
+    // useful once IsExpensiveCheck/Transform are genuinely CPU-bound</span>`
+    }
+  ],
+  output:`1. LINQ to Objects  → Meera, Asha              (runs in-process, in C#)
+2. LINQ to Entities → SELECT Name FROM Students WHERE Major='CS'...  (runs as SQL, on the DB server)
+3. LINQ to SQL      → same idea as #2, through the older single-table mapper
+4. LINQ to XML      → Asha, Meera                (runs by walking an in-memory XElement tree)
+5. PLINQ            → same result as LINQ to Objects, computed in parallel across cores`,
+  note:`Rule of thumb for picking a variant: querying objects already in memory → LINQ to Objects. Querying a
+  database → LINQ to Entities (EF Core is the modern default; LINQ to SQL is mostly legacy) and let it become
+  SQL. Querying/building XML → LINQ to XML. Only reach for <code>AsParallel()</code> once profiling shows a
+  genuinely CPU-bound bottleneck — it adds overhead that can make small or I/O-bound queries <em>slower</em>.
+  The next two topics dig into exactly <em>how</em> LINQ to Entities turns C# into SQL.`
+},
+
+// ---------------- SECTION: UNDER THE HOOD ----------------
+{
+  section:"Under the Hood",
+  title:"IQueryable vs. IEnumerable — Custom Query Providers",
+  tagline:"The interface you query against decides whether your filter runs in C# or in SQL.",
+  explain:`
+    <p><code>IEnumerable&lt;T&gt;</code> represents a sequence you iterate <strong>in process</strong>. Every
+    operator you call — <code>Where</code>, <code>Select</code> — is compiled straight to a delegate and run
+    by the CLR, one element at a time.</p>
+    <p><code>IQueryable&lt;T&gt;</code> extends <code>IEnumerable&lt;T&gt;</code> but works completely
+    differently underneath: instead of compiling each operator to a delegate, it builds an
+    <strong>expression tree</strong> describing the query. Nothing runs yet. That tree is handed to a
+    <strong>query provider</strong> (e.g. EF Core's), which walks it and translates it into something else
+    entirely — typically SQL — only executing once you enumerate the result.</p>
+    <p>This is why <em>where</em> in your method chain you call <code>.Where(...)</code> can matter enormously
+    against a database.</p>
+  `,
+  block1label:"same-looking code, very different execution",
+  code:`<span class="cm">// db.Students is IQueryable<Student> — Where() here builds an
+// expression tree, translated to SQL, filtered ON THE SERVER</span>
+<span class="tp">var</span> serverSide = dbContext.Students
+    .Where(s =&gt; s.Gpa &gt; 8.0)     <span class="cm">// → becomes: WHERE Gpa > 8.0</span>
+    .ToList();                    <span class="cm">// query runs HERE, only matching rows cross the wire</span>
+
+<span class="cm">// Calling AsEnumerable() first switches to IEnumerable<Student> —
+// now Where() is a plain delegate, running IN MEMORY</span>
+<span class="tp">var</span> clientSide = dbContext.Students
+    .AsEnumerable()                <span class="cm">// ← whole table pulled into memory first!</span>
+    .Where(s =&gt; s.Gpa &gt; 8.0)     <span class="cm">// filtered in C#, after the fact</span>
+    .ToList();`,
+  output:`serverSide → SQL: SELECT * FROM Students WHERE Gpa > 8.0
+             (database does the filtering, only 3 rows travel back)
+
+clientSide → SQL: SELECT * FROM Students
+             (the ENTIRE table travels back, then C# filters it —
+             usually a real performance bug on large tables)`,
+  note:`You can build your own query provider too — that's how libraries like "LINQ to Twitter" or a custom
+  ORM work: implement <code>IQueryable&lt;T&gt;</code> and <code>IQueryProvider</code>, and in
+  <code>IQueryProvider.Execute</code>/<code>CreateQuery</code> walk the incoming expression tree yourself,
+  turning it into an HTTP call, a file scan, or anything else — LINQ's syntax stays identical, only the
+  translation target changes.`
+},
+
+{
+  section:"Under the Hood",
+  title:"Expression Trees vs. Delegates",
+  tagline:"The subtle difference between a lambda that runs code and a lambda that describes code.",
+  explain:`
+    <p>Write <code>s =&gt; s.Gpa &gt; 8.0</code> and the compiler can turn it into <strong>either</strong> of
+    two very different things, depending on the type you assign it to:</p>
+    <ul>
+      <li><code>Func&lt;Student, bool&gt;</code> — a <strong>delegate</strong>. Compiled straight to IL. Opaque:
+      you can call it, but nothing can look inside and see what it checks.</li>
+      <li><code>Expression&lt;Func&lt;Student, bool&gt;&gt;</code> — an <strong>expression tree</strong>. Compiled
+      into a data structure of nodes (a <code>BinaryExpression</code> wrapping a <code>MemberExpression</code>
+      and a <code>ConstantExpression</code>, here) describing the logic, <em>not</em> runnable code.</li>
+    </ul>
+    <p>This is the exact mechanism that makes <code>IQueryable</code> possible: EF Core doesn't run your
+    lambda — it inspects the expression tree, reads "compare property Gpa to constant 8.0," and emits
+    <code>WHERE Gpa &gt; 8.0</code> instead.</p>
+  `,
+  block1label:"the same lambda, compiled two different ways",
+  code:`<span class="cm">// As a delegate — this is executable code, right now</span>
+<span class="tp">Func</span>&lt;<span class="tp">Student</span>, <span class="tp">bool</span>&gt; asDelegate = s =&gt; s.Gpa &gt; 8.0;
+<span class="tp">bool</span> passes = asDelegate(students[0]);   <span class="cm">// just calls it, like any method</span>
+
+<span class="cm">// As an expression tree — this is DATA describing code</span>
+<span class="tp">Expression</span>&lt;<span class="tp">Func</span>&lt;<span class="tp">Student</span>, <span class="tp">bool</span>&gt;&gt; asExpression = s =&gt; s.Gpa &gt; 8.0;
+Console.WriteLine(asExpression.Body);        <span class="cm">// prints: (s.Gpa > 8)</span>
+Console.WriteLine(asExpression.Body.NodeType); <span class="cm">// prints: GreaterThan</span>
+
+<span class="cm">// You CAN turn a tree back into a runnable delegate on demand:</span>
+<span class="tp">Func</span>&lt;<span class="tp">Student</span>, <span class="tp">bool</span>&gt; compiled = asExpression.Compile();`,
+  block2label:"building one by hand, node by node",
+  code2:`<span class="tp">ParameterExpression</span> param = <span class="tp">Expression</span>.Parameter(<span class="kw">typeof</span>(Student), <span class="str">"s"</span>);
+<span class="tp">MemberExpression</span>   gpaProp = <span class="tp">Expression</span>.Property(param, <span class="str">"Gpa"</span>);
+<span class="tp">ConstantExpression</span> eightPointO = <span class="tp">Expression</span>.Constant(8.0);
+<span class="tp">BinaryExpression</span>   comparison = <span class="tp">Expression</span>.GreaterThan(gpaProp, eightPointO);
+
+<span class="tp">var</span> handBuilt = <span class="tp">Expression</span>.Lambda&lt;<span class="tp">Func</span>&lt;<span class="tp">Student</span>, <span class="tp">bool</span>&gt;&gt;(comparison, param);
+<span class="cm">// handBuilt is IDENTICAL, node for node, to "s => s.Gpa > 8.0"
+// This is essentially what the C# compiler does for you automatically.</span>`,
+  output:`passes                       = True
+asExpression.Body            = (s.Gpa > 8)
+asExpression.Body.NodeType   = GreaterThan
+compiled(students[0])        = True
+
+handBuilt behaves exactly like asExpression — same tree shape.`,
+  note:`This is also why <code>IQueryable</code> methods only accept things a provider can translate.
+  Call a random C# helper method inside a query passed to EF Core and you'll often get a runtime error —
+  the expression tree has no SQL equivalent for that node, and the provider has nothing to fall back on.`
+},
+
+// ---------------- SECTION: LEVEL UP ----------------
+{
+  section:"Level Up",
+  title:"Modern LINQ — Hidden Gems",
+  tagline:"Newer operators (.NET 6–9) that quietly replace code you may still be hand-writing.",
+  explain:`
+    <p>LINQ keeps growing. A handful of newer additions solve problems that used to need a manual loop or an
+    awkward workaround — worth knowing even after you're comfortable with the classics.</p>
+    <ul>
+      <li><code>DistinctBy</code> / <code>UnionBy</code> / <code>IntersectBy</code> / <code>ExceptBy</code> — the set
+      operators from earlier, but keyed by a selector instead of the whole object.</li>
+      <li><code>Chunk(size)</code> — splits one sequence into consecutive batches, e.g. for paging or batch API calls.</li>
+      <li><code>Order()</code> / <code>OrderDescending()</code> — sort directly when elements are already comparable,
+      no <code>.OrderBy(x =&gt; x)</code> needed.</li>
+      <li><code>Index()</code> — pairs each element with its position, replacing a manual counter variable.</li>
+      <li><code>TryGetNonEnumeratedCount</code> — asks "do you already know your count?" without forcing a full
+      enumeration just to find out.</li>
+    </ul>
+  `,
+  block1label:"DistinctBy, Chunk, and Order in action",
+  code:`<span class="cm">// DistinctBy — one student per major, first one wins</span>
+<span class="tp">var</span> oneRepPerMajor = students.DistinctBy(s =&gt; s.Major);
+
+<span class="cm">// Chunk — batches of 2, useful for paging or batching API calls</span>
+<span class="tp">foreach</span> (<span class="tp">Student</span>[] batch <span class="kw">in</span> students.Chunk(2))
+    Console.WriteLine($<span class="str">"batch of {batch.Length}: {string.Join(", ", batch.Select(s =&gt; s.Name))}"</span>);
+
+<span class="cm">// Order — sorts comparable elements directly, no key selector needed</span>
+<span class="tp">var</span> gpasSorted = students.Select(s =&gt; s.Gpa).Order();`,
+  block2label:"Index and TryGetNonEnumeratedCount",
+  code2:`<span class="cm">// Index — pairs each element with its position (.NET 9+)</span>
+<span class="kw">foreach</span> ((<span class="tp">int</span> position, <span class="tp">Student</span> s) <span class="kw">in</span> students.Index())
+    Console.WriteLine($<span class="str">"{position}: {s.Name}"</span>);
+
+<span class="cm">// TryGetNonEnumeratedCount — avoids a full scan just to check size,
+// when the count is already cheaply known (e.g. a List or array)</span>
+<span class="kw">if</span> (students.TryGetNonEnumeratedCount(<span class="kw">out</span> <span class="tp">int</span> count))
+    Console.WriteLine($<span class="str">"cheap count: {count}"</span>);`,
+  output:`oneRepPerMajor = Asha(CS), Ravi(Math), Kabir(Physics)
+
+batch of 2: Asha, Ravi
+batch of 2: Meera, Kabir
+batch of 1: Diya
+
+0: Asha
+1: Ravi
+2: Meera
+3: Kabir
+4: Diya
+
+cheap count: 5   (List<T> knows its own length — no enumeration needed)`,
+  note:`None of these change what's <em>possible</em> in LINQ — everything here could be hand-written with
+  older operators. What they change is whether the intent is obvious at a glance and whether the runtime can
+  skip unnecessary work, which is exactly what "hidden gem" means: small, easy to miss, meaningfully better
+  than what most people still reach for out of habit.`
+},
+
+{
+  section:"Level Up",
+  title:"Custom Aggregations",
+  tagline:"When Sum, Average, and Count don't fit — build your own rollup with Aggregate, or write your own operator.",
+  explain:`
+    <p><code>Aggregate</code> is the general-purpose reduction underneath <code>Sum</code>, <code>Count</code>,
+    and every other aggregate you've used — it takes a <strong>seed</strong> (starting value) and a function
+    describing how to fold each element into a running accumulator. Every named aggregate is really just a
+    pre-packaged call to <code>Aggregate</code>.</p>
+    <p>For a custom aggregate you'll reuse often, the cleanest move is to <strong>write your own extension
+    method</strong> on <code>IEnumerable&lt;T&gt;</code> — that's all <code>Where</code> and <code>Select</code>
+    are too, so a hand-written operator slots into a LINQ chain exactly like a built-in one.</p>
+  `,
+  block1label:"Aggregate — a custom rollup with a seed and result selector",
+  code:`<span class="cm">// Build a formatted string, GPA-band by GPA-band, in one pass</span>
+<span class="tp">string</span> summary = students.Aggregate(
+    seed: <span class="str">""</span>,                                        <span class="cm">// starting accumulator</span>
+    func: (runningText, s) =&gt;                            <span class="cm">// fold each student in</span>
+        runningText + $<span class="str">"{s.Name}({s.Gpa}) "</span>,
+    resultSelector: text =&gt; text.Trim()                  <span class="cm">// shape the final value</span>
+);
+<span class="cm">// This is the same pattern Sum() and Count() use internally —
+// they're just Aggregate with the fold logic pre-written for you.</span>`,
+  block2label:"writing your own reusable LINQ operator",
+  code2:`<span class="kw">public</span> <span class="kw">static</span> <span class="kw">class</span> <span class="tp">MyLinqExtensions</span>
+{
+    <span class="cm">// StandardDeviation — not built into LINQ, so we add it ourselves</span>
+    <span class="kw">public</span> <span class="kw">static</span> <span class="tp">double</span> StandardDeviation(<span class="kw">this</span> <span class="tp">IEnumerable</span>&lt;<span class="tp">double</span>&gt; source)
+    {
+        <span class="tp">List</span>&lt;<span class="tp">double</span>&gt; values = source.ToList();
+        <span class="tp">double</span> mean = values.Average();
+        <span class="tp">double</span> variance = values.Average(v =&gt; Math.Pow(v - mean, 2));
+        <span class="kw">return</span> Math.Sqrt(variance);
+    }
+}
+
+<span class="cm">// Used exactly like a built-in aggregate:</span>
+<span class="tp">double</span> spread = students.Select(s =&gt; s.Gpa).StandardDeviation();`,
+  output:`summary = Asha(8.7) Ravi(7.9) Meera(9.2) Kabir(6.8) Diya(8.1)
+
+spread  = 0.83
+          (custom operator, called with the exact same
+          dot-chain syntax as Sum() or Average())`,
+  note:`This is also how you'd write a <strong>deferred</strong> custom operator (one that streams instead of
+  building a whole result up front): return <code>IEnumerable&lt;T&gt;</code> and use <code>yield return</code>
+  inside a loop instead of returning a single folded value. That single technique — an extension method plus
+  <code>yield return</code> — is literally how <code>Where</code> and <code>Select</code> are implemented in
+  .NET's own source.`
+},
+
+// ---------------- SECTION: BRINGING IT TOGETHER ----------------
+{
+  section:"Bringing It Together",
+  title:"A Full Query, Piece by Piece",
+  tagline:"Everything in this course, chained into one realistic query — read top to bottom like a sentence.",
+  explain:`
+    <p>Real LINQ queries usually chain several operators together. The skill isn't memorizing every method —
+    it's reading a chain the way you'd read a pipeline: each line takes what the line above produced and
+    narrows or reshapes it further.</p>
+  `,
+  block1label:"“the average GPA of every major with more than 1 student, best-major-first”",
+  code:`<span class="tp">var</span> report = students
+    .GroupBy(s =&gt; s.Major)                              <span class="cm">// 1. bucket by major</span>
+    .Where(g =&gt; g.Count() &gt; 1)                          <span class="cm">// 2. drop majors with only 1 student</span>
+    .Select(g =&gt; <span class="kw">new</span>                                    <span class="cm">// 3. reshape each group into a summary</span>
+    {
+        Major = g.Key,
+        StudentCount = g.Count(),
+        AverageGpa = Math.Round(g.Average(s =&gt; s.Gpa), 2)
+    })
+    .OrderByDescending(x =&gt; x.AverageGpa)                <span class="cm">// 4. best average first</span>
+    .ToList();                                            <span class="cm">// 5. run it once, lock in the result</span>
+
+<span class="kw">foreach</span> (<span class="tp">var</span> row <span class="kw">in</span> report)
+    Console.WriteLine($<span class="str">"{row.Major}: {row.StudentCount} students, avg {row.AverageGpa}"</span>);`,
+  output:`CS: 2 students, avg 8.95
+Math: 2 students, avg 8.0
+
+(Physics was dropped by the .Where(g => g.Count() > 1) step,
+ since Kabir is its only student.)`,
+  note:`That's the whole vocabulary of this course in one query: <strong>GroupBy → Where → Select → OrderBy →
+  ToList</strong>. From here, the best next step is picking a real list you have — files, orders, log lines,
+  anything — and writing three queries against it from scratch, no notes.`,
+  isFinal:true
+},
+];
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+const nav = document.getElementById('nav');
+const main = document.getElementById('main');
+let currentIndex = 0;
+
+// group topics by section, preserving order
+const sections = [];
+topics.forEach((t, i) => {
+  let sec = sections.find(s => s.name === t.section);
+  if (!sec) { sec = { name: t.section, items: [] }; sections.push(sec); }
+  sec.items.push(i);
+});
+
+function renderNav(){
+  nav.innerHTML = '';
+  sections.forEach(sec => {
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = sec.name;
+    nav.appendChild(label);
+    const ul = document.createElement('ul');
+    sec.items.forEach(i => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.dataset.index = i;
+      btn.innerHTML = `<span class="num">${String(i+1).padStart(2,'0')}</span><span>${topics[i].title}</span>`;
+      btn.addEventListener('click', () => goTo(i));
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+    nav.appendChild(ul);
+  });
+}
+
+function pipelineSVG(){
+  return `<div class="pipeline"><svg viewBox="0 0 640 130" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#8B8CA0"/>
+      </marker>
+    </defs>
+    <text x="30" y="30" class="flow-label">source</text>
+    <rect x="20" y="40" width="70" height="34" rx="8" fill="#0C9C89"/>
+    <text x="55" y="61" text-anchor="middle" class="flow-chip">list</text>
+
+    <line x1="95" y1="57" x2="150" y2="57" stroke="#8B8CA0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <text x="160" y="30" class="flow-label">.Where()</text>
+    <rect x="150" y="40" width="90" height="34" rx="8" fill="#6C5CE7"/>
+    <text x="195" y="61" text-anchor="middle" class="flow-chip">filter</text>
+
+    <line x1="245" y1="57" x2="300" y2="57" stroke="#8B8CA0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <text x="308" y="30" class="flow-label">.Select()</text>
+    <rect x="300" y="40" width="90" height="34" rx="8" fill="#6C5CE7"/>
+    <text x="345" y="61" text-anchor="middle" class="flow-chip">shape</text>
+
+    <line x1="395" y1="57" x2="450" y2="57" stroke="#8B8CA0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <text x="458" y="30" class="flow-label">.OrderBy()</text>
+    <rect x="450" y="40" width="90" height="34" rx="8" fill="#6C5CE7"/>
+    <text x="495" y="61" text-anchor="middle" class="flow-chip">sort</text>
+
+    <line x1="545" y1="57" x2="595" y2="57" stroke="#8B8CA0" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <text x="600" y="30" class="flow-label">result</text>
+    <circle class="dot-flow" cx="612" cy="57" r="10"/>
+
+    <text x="55" y="100" text-anchor="middle" class="flow-label">IEnumerable&lt;T&gt;</text>
+    <text x="195" y="100" text-anchor="middle" class="flow-label">still IEnumerable&lt;T&gt;</text>
+    <text x="495" y="100" text-anchor="middle" class="flow-label">still IEnumerable&lt;T&gt;</text>
+  </svg><div class="pipeline-cap">Every operator takes a sequence in and hands a sequence (or single value) to the next — that's the whole shape of LINQ.</div></div>`;
+}
+
+function renderTopic(i){
+  const t = topics[i];
+  const wrap = document.createElement('div');
+  wrap.className = 'topic active';
+  wrap.id = `topic-${i}`;
+
+  let html = `
+    <div class="eyebrow"><span class="dot"></span>${t.section}</div>
+    <h2 class="topic-title">${t.title}</h2>
+    <p class="tagline">${t.tagline}</p>
+    <div class="explain">${t.explain}</div>
+  `;
+
+  if(t.pipelineHero){ html += pipelineSVG(); }
+
+  html += `<div class="block-label">${t.block1label}</div>
+    <pre class="codebox" data-lang="C#">${t.code}</pre>`;
+
+  if(t.code2){
+    html += `<div class="block-label">${t.block2label}</div>
+    <pre class="codebox" data-lang="C#">${t.code2}</pre>`;
+  }
+
+  if(t.extraBlocks){
+    t.extraBlocks.forEach(b => {
+      html += `<div class="block-label">${b.label}</div>
+    <pre class="codebox" data-lang="C#">${b.code}</pre>`;
+    });
+  }
+
+  if(t.output){
+    html += `<div class="output-box"><span class="lbl">Console Output</span><pre>${t.output}</pre></div>`;
+  }
+
+  if(t.note){
+    html += `<div class="note"><span class="lbl">Worth knowing —</span>${t.note}</div>`;
+  }
+
+  if(t.isFinal){
+    html += `<div class="try-it"><span class="lbl">You've got the whole toolkit —</span>Where, Select, OrderBy/ThenBy, GroupBy, Join, the aggregates, the element pickers, the set ops, Skip/Take, and how execution actually runs. That's LINQ.</div>`;
+  }
+
+  html += `<div class="nav-buttons">
+    <button id="prevBtn" ${i===0?'disabled':''}>
+      <span class="small">← Previous</span>
+      <span>${i>0?topics[i-1].title:''}</span>
+    </button>
+    <button id="nextBtn" class="next" ${i===topics.length-1?'disabled':''}>
+      <span class="small">Next →</span>
+      <span>${i<topics.length-1?topics[i+1].title:'Course complete'}</span>
+    </button>
+  </div>`;
+
+  wrap.innerHTML = html;
+  main.innerHTML = '';
+  main.appendChild(wrap);
+
+  document.getElementById('prevBtn')?.addEventListener('click', () => { if(i>0) goTo(i-1); });
+  document.getElementById('nextBtn')?.addEventListener('click', () => { if(i<topics.length-1) goTo(i+1); });
+}
+
+function updateProgress(i){
+  const pct = Math.round(((i+1)/topics.length)*100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = `Topic ${i+1} of ${topics.length}`;
+}
+
+function goTo(i){
+  currentIndex = i;
+  document.querySelectorAll('nav button').forEach(b => {
+    const idx = parseInt(b.dataset.index, 10);
+    b.classList.toggle('active', idx === i);
+    if(idx < i) b.classList.add('done'); else if(idx !== i) b.classList.remove('done');
+  });
+  renderTopic(i);
+  updateProgress(i);
+  main.scrollTo({top:0, behavior:'instant'});
+}
+
+renderNav();
+goTo(0);
+</script>
+</body>
+</html>
